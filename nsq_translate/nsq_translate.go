@@ -318,12 +318,12 @@ func main() {
 	//初始化Producer和Consumer
 	p, err = nsq.NewProducer("127.0.0.1:4150", nsq.NewConfig())
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 	c, err = nsq.NewConsumer("translateBefore", "channelA", nsq.NewConfig())
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 		return
 	}
 
@@ -378,8 +378,13 @@ func main() {
 	}
 	c.AddHandler(nsq.HandlerFunc(hand))
 	if err := c.ConnectToNSQLookupd("127.0.0.1:4161"); err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
 
-	time.Sleep(time.Second * 10000)
+	fmt.Printf("Entering sleep...")
+	blockForever()
+}
+func blockForever() {
+	c := make(chan struct{})
+	<-c
 }

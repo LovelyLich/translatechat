@@ -39,7 +39,7 @@ func getChatMsg() (*ChatMsgJson, error) {
 	var msg = &ChatMsgJson{
 		Catalog:    "audio",
 		Time:       strconv.FormatInt(time.Now().Unix(), 10),
-		FromLang:   "zh",
+		FromLang:   "auto",
 		ToLang:     "en",
 		FromText:   "",
 		FromAudio:  str,
