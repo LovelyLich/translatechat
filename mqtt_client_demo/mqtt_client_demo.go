@@ -41,7 +41,7 @@ func getChatMsg() (*ChatMsgJson, error) {
 	var msg = &ChatMsgJson{
 		Catalog:    "audio",
 		Time:       strconv.FormatInt(time.Now().Unix(), 10),
-		FromUser:   "18100805252",
+		FromUser:   "8618100805249",
 		ToUser:     "18358183215",
 		FromLang:   "zh",
 		ToLang:     "en",
@@ -58,10 +58,10 @@ func onMessageReceived(client MQTT.Client, message MQTT.Message) {
 }
 
 func main() {
-	server := flag.String("server", "tcp://127.0.0.1:1883", "The full URL of the MQTT server to connect to")
-	topic := flag.String("topic", "/18100805252/18358183215/messages", "Topic to publish the messages on")
-	username := flag.String("username", "18100805252", "A username to authenticate to the MQTT server")
-	password := flag.String("password", "8X06cUNyFlRMVHs", "Password to match username")
+	server := flag.String("server", "tcp://27.155.100.158:1883", "The full URL of the MQTT server to connect to")
+	topic := flag.String("topic", "/8618100805249/18358183215/messages", "Topic to publish the messages on")
+	username := flag.String("username", "8618100805249", "A username to authenticate to the MQTT server")
+	password := flag.String("password", "P6vdnfjlMTBlZ1p", "Password to match username")
 	flag.Parse()
 
 	connOpts := MQTT.NewClientOptions().AddBroker(*server).SetClientID("testclientA").SetCleanSession(false)
