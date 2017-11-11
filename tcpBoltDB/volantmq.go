@@ -920,6 +920,46 @@ func doTranslate(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	}
 	return msg, nil
 }
+
+type PhoneCode struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+type LangCode struct {
+	Name string `json:"name"`
+	Code string `json:"code"`
+}
+
+func doPhoneCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+	ret = []PhoneCode{
+		{
+			Name: "中国",
+			Code: "86",
+		},
+		{
+			Name: "韩国",
+			Code: "82",
+		},
+	}
+	return ret, nil
+}
+func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+	ret = []LangCode{
+		{
+			Name: "自动",
+			Code: "auto"},
+		{
+			Name: "中文",
+			Code: "zh",
+		},
+		{
+			Name: "英语",
+			Code: "en",
+		},
+	}
+	return ret, nil
+
+}
 func handleUserRegister(w http.ResponseWriter, r *http.Request) {
 	resp, err := doUserRegister(w, r)
 	HandleResponse(w, r, resp, err)
@@ -970,6 +1010,15 @@ func handleTranslate(w http.ResponseWriter, r *http.Request) {
 	resp, err := doTranslate(w, r)
 	HandleResponse(w, r, resp, err)
 }
+func handlePhoneCode(w http.ResponseWriter, r *http.Request) {
+	resp, err := doPhoneCode(w, r)
+	HandleResponse(w, r, resp, err)
+}
+
+func handleLangCode(w http.ResponseWriter, r *http.Request) {
+	resp, err := doLangCode(w, r)
+	HandleResponse(w, r, resp, err)
+}
 
 func handleTest(w http.ResponseWriter, r *http.Request) {
 	HandleResponse(w, r, nil, nil)
@@ -988,6 +1037,8 @@ func startApiListener() {
 	http.HandleFunc("/friends/del_friend", handleDelFriend)
 	http.HandleFunc("/upload/photo", handleUploadPhoto) //头像上传接口
 	http.HandleFunc("/translate", handleTranslate)
+	http.HandleFunc("/get_phone_code", handlePhoneCode)
+	http.HandleFunc("/get_lang_code", handleLangCode)
 	//下载目录
 	fsh := http.FileServer(http.Dir("./upload"))
 	http.Handle("/download/", http.StripPrefix("/download/", fsh))
