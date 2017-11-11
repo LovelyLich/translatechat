@@ -767,7 +767,7 @@ func translate(msg *TransMsgJson) error {
 		//语音生成amr文件到翻译目录
 		decoded, err := base64.StdEncoding.DecodeString(msg.FromAudio)
 		if err != nil {
-			log.Fatal("decode error:", err)
+			log.Println("decode error:", err)
 			return err
 		}
 		nowStr := strconv.FormatInt(time.Now().Unix(), 10)
@@ -775,21 +775,21 @@ func translate(msg *TransMsgJson) error {
 
 		err = ioutil.WriteFile(audioAmrFile, decoded, 0644)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		//语音转文字
 		var text string
 		text, err = audio2text(audioAmrFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.FromText = text
 		//文字翻译
 		to, err := translateText(msg.FromLang, msg.ToLang, msg.FromText)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.ToText = to
@@ -799,7 +799,7 @@ func translate(msg *TransMsgJson) error {
 		audioDownloadAmrFile := "download/translate/" + nowStr + "_result.amr"
 		err = text2audio(msg.ToText, audioResultMp3File, audioResultAmrFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.ToAudioUrl = audioDownloadAmrFile
@@ -907,6 +907,7 @@ func doTranslate(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 		logger.Error("Could't read request body", zap.Error(err))
 		return nil, err
 	}
+	logger.Error("unmarshal body", zap.String("body", string(body)))
 	var msg TransMsgJson
 	err = json.Unmarshal(body, &msg)
 	if err != nil {
@@ -914,7 +915,7 @@ func doTranslate(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 		return nil, err
 	}
 	if err = translate(&msg); err != nil {
-		log.Fatal(err)
+		logger.Error("transalte failed", zap.Error(err))
 		return nil, err
 	}
 	return msg, nil
