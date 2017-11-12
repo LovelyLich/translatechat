@@ -86,30 +86,45 @@ func translateText(FromLang, ToLang, FromText string) (string, error) {
 	fmt.Printf("signStr=[%s], translateUrl=[%s]\n", signStr, translateUrl)
 	res, err := http.Get(translateUrl)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", nil
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", nil
 	}
 	var transResp TransResp
 	err = json.Unmarshal(body, &transResp)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", nil
 	}
 	fmt.Printf("translate result: %s, text result: %s\n", string(body), transResp.TransResult[0].Dst)
 	return transResp.TransResult[0].Dst, nil
 }
+
+func convertAudioFile(beforeFile, afterAmrFile string) error {
+	cmdStr := "ffmpeg -y -i " + beforeFile + " -acodec amr_wb -ac 1 -ar 16000 -ab 23850 " + afterAmrFile
+	_, err = exec.Command("bash", "-c", cmdStr).Output()
+	if err != nil {
+		log.Println("convert file: ", err)
+		return err
+	}
+	if err = os.Remove(beforeFile); err != nil {
+		log.Println("convert file: ", err)
+		return err
+	}
+	return nil
+}
+
 func translate(msg *ChatMsgJson) error {
 	if msg.Catalog == "text" {
 		to, err := translateText(msg.FromLang, msg.ToLang, msg.FromText)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.ToText = to
@@ -118,35 +133,42 @@ func translate(msg *ChatMsgJson) error {
 		//构造会话目录
 		dir := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/"
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		//语音生成amr文件到会话目录
 		decoded, err := base64.StdEncoding.DecodeString(msg.FromAudio)
 		if err != nil {
-			log.Fatal("decode error:", err)
+			log.Println("decode error:", err)
 			return err
 		}
 		nowStr := strconv.FormatInt(time.Now().Unix(), 10)
+		audioCvtBefFile := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_cvtbef.amr"
 		audioAmrFile := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + ".amr"
 
-		err = ioutil.WriteFile(audioAmrFile, decoded, 0644)
+		err = ioutil.WriteFile(audioCvtBefFile, decoded, 0644)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
+		//语音文件格式适配
+		if err = convertAudioFile(audioCvtBefFile, audioAmrFile); err != nil {
+			log.Printf("convert audio file format failed, %s", err.Error())
+			return err
+		}
+
 		//语音转文字
 		var text string
 		text, err = audio2text(audioAmrFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.FromText = text
 		//文字翻译
 		to, err := translateText(msg.FromLang, msg.ToLang, msg.FromText)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.ToText = to
@@ -156,7 +178,7 @@ func translate(msg *ChatMsgJson) error {
 		audioDownloadAmrFile := "download/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_result.amr"
 		err = text2audio(msg.ToText, audioResultMp3File, audioResultAmrFile)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.ToAudioUrl = audioDownloadAmrFile
@@ -171,20 +193,20 @@ func getToken() (string, error) {
 	urlToken := "https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id=" + apiKey + "&client_secret=" + secretKey
 	res, err := http.Get(urlToken)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	var t TokenResult
 	err = json.Unmarshal(body, &t)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	fmt.Printf("token result: %s\n", t.AccessToken)
@@ -199,36 +221,36 @@ func audio2text(audioAmrFile string) (string, error) {
 	var err error
 	file, err = os.Open(audioAmrFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	urlAudio2Text := "http://vop.baidu.com/server_api?lan=zh&cuid=" + cuid + "&token=" + token
 	var resp *http.Response
 	resp, err = http.Post(urlAudio2Text, "audio/amr;rate=16000", file)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	var body []byte
 	body, err = ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	var a2tRet Audio2TextResult
 	err = json.Unmarshal(body, &a2tRet)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	if a2tRet.ErrNo != 0 {
 		err = fmt.Errorf("Audio2Text failed, %s", a2tRet.ErrMsg)
-		fmt.Printf("Audio2Text failed, url: %s, result from server %s, %#v\n", urlAudio2Text, string(body), a2tRet)
+		log.Printf("Audio2Text failed, url: %s, result from server %s, %#v\n", urlAudio2Text, string(body), a2tRet)
 		return "", err
 	}
 
-	fmt.Printf("Audio2Text result: %s\n", a2tRet.Result[0])
+	log.Printf("Audio2Text result: %s\n", a2tRet.Result[0])
 	return a2tRet.Result[0], nil
 }
 
@@ -242,37 +264,37 @@ func text2audio(text, mp3File, saveAudioFile string) error {
 	var res *http.Response
 	res, err = http.Get(urlText2Audio)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 
 	var body []byte
 	body, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 	defer res.Body.Close()
 
 	if res.Header.Get("Content-type") != "audio/mp3" {
-		fmt.Printf("text2audio failed: %s\n", string(body))
+		log.Printf("text2audio failed: %s\n", string(body))
 		return err
 	}
 
 	err = ioutil.WriteFile(mp3File, body, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 
 	cmdStr := "lame " + mp3File + " " + saveAudioFile
 	_, err = exec.Command("bash", "-c", cmdStr).Output()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 	if err = os.Remove(mp3File); err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	return nil
 }
