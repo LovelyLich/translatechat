@@ -764,12 +764,31 @@ func convertAudioFile(beforeFile, afterAmrFile string) error {
 
 func translate(msg *TransMsgJson) error {
 	if msg.Catalog == "text" {
+		//构造会话目录
+		dir := "upload/translate/"
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			log.Println(err)
+			return err
+		}
+
 		to, err := translateText(msg.FromLang, msg.ToLang, msg.FromText)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
 		msg.ToText = to
+
+		nowStr := strconv.FormatInt(time.Now().Unix(), 10)
+		//文字合成语音
+		audioResultMp3File := dir + nowStr + "_result.mp3"
+		audioResultAmrFile := dir + nowStr + "_result.amr"
+		audioDownloadAmrFile := "download/translate/" + nowStr + "_result.amr"
+		err = text2audio(msg.ToText, audioResultMp3File, audioResultAmrFile)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		msg.ToAudioUrl = audioDownloadAmrFile
 	} else {
 		//语音翻译, Catalog == "audio"
 		//构造会话目录
@@ -825,6 +844,8 @@ func translate(msg *TransMsgJson) error {
 			return err
 		}
 		msg.ToAudioUrl = audioDownloadAmrFile
+		//源语音置空
+		msg.FromAudio = ""
 	}
 	return nil
 }
@@ -995,7 +1016,6 @@ func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 		}
 	}
 	return ret, nil
-
 }
 func handleUserRegister(w http.ResponseWriter, r *http.Request) {
 	resp, err := doUserRegister(w, r)

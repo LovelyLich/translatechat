@@ -122,12 +122,31 @@ func convertAudioFile(beforeFile, afterAmrFile string) error {
 
 func translate(msg *ChatMsgJson) error {
 	if msg.Catalog == "text" {
+		//构造会话目录
+		dir := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/"
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			log.Println(err)
+			return err
+		}
+
 		to, err := translateText(msg.FromLang, msg.ToLang, msg.FromText)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
 		msg.ToText = to
+
+		nowStr := strconv.FormatInt(time.Now().Unix(), 10)
+		//文字转语音
+		audioResultMp3File := dir + nowStr + "_result.mp3"
+		audioResultAmrFile := dir + nowStr + "_result.amr"
+		audioDownloadAmrFile := "download/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_result.amr"
+		err = text2audio(msg.ToText, audioResultMp3File, audioResultAmrFile)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		msg.ToAudioUrl = audioDownloadAmrFile
 	} else {
 		//语音翻译, Catalog == "audio"
 		//构造会话目录
@@ -143,8 +162,8 @@ func translate(msg *ChatMsgJson) error {
 			return err
 		}
 		nowStr := strconv.FormatInt(time.Now().Unix(), 10)
-		audioCvtBefFile := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_cvtbef.amr"
-		audioAmrFile := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + ".amr"
+		audioCvtBefFile := dir + nowStr + "_cvtbef.amr"
+		audioAmrFile := dir + nowStr + ".amr"
 
 		err = ioutil.WriteFile(audioCvtBefFile, decoded, 0644)
 		if err != nil {
@@ -173,8 +192,8 @@ func translate(msg *ChatMsgJson) error {
 		}
 		msg.ToText = to
 		//文字转语音
-		audioResultMp3File := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_result.mp3"
-		audioResultAmrFile := "../tcpBoltDB/" + "upload/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_result.amr"
+		audioResultMp3File := dir + nowStr + "_result.mp3"
+		audioResultAmrFile := dir + nowStr + "_result.amr"
 		audioDownloadAmrFile := "download/" + msg.FromUser + "/" + msg.ToUser + "/" + nowStr + "_result.amr"
 		err = text2audio(msg.ToText, audioResultMp3File, audioResultAmrFile)
 		if err != nil {
