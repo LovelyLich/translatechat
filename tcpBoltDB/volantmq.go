@@ -983,7 +983,7 @@ func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 			},
 		}
 	} else {
-		ret := []LangCode{
+		ret = []LangCode{
 			{
 				Name: "中文",
 				Code: "zh",
