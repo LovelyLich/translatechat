@@ -201,6 +201,7 @@ func translate(msg *ChatMsgJson) error {
 			return err
 		}
 		msg.ToAudioUrl = audioDownloadAmrFile
+		msg.FromAudio = ""
 	}
 	return nil
 }

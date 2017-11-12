@@ -30,25 +30,41 @@ type ChatMsgJson struct {
 	ToAudioUrl string // 目标amr文件下载地址
 }
 
-func getChatMsg() (*ChatMsgJson, error) {
-	amrFile := "../tcpBoltDB/test.amr"
-	content, err := ioutil.ReadFile(amrFile)
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	str := base64.StdEncoding.EncodeToString(content)
-	var msg = &ChatMsgJson{
-		Catalog:    "audio",
-		Time:       strconv.FormatInt(time.Now().Unix(), 10),
-		FromUser:   "8618100805249",
-		ToUser:     "18358183215",
-		FromLang:   "zh",
-		ToLang:     "en",
-		FromText:   "",
-		FromAudio:  str,
-		ToText:     "",
-		ToAudioUrl: "",
+func getChatMsg(isText bool) (*ChatMsgJson, error) {
+	var msg *ChatMsgJson
+	if !isText {
+		amrFile := "../tcpBoltDB/test.amr"
+		content, err := ioutil.ReadFile(amrFile)
+		if err != nil {
+			log.Fatal(err)
+			return nil, err
+		}
+		str := base64.StdEncoding.EncodeToString(content)
+		msg = &ChatMsgJson{
+			Catalog:    "audio",
+			Time:       strconv.FormatInt(time.Now().Unix(), 10),
+			FromUser:   "8618100805249",
+			ToUser:     "18358183215",
+			FromLang:   "zh",
+			ToLang:     "en",
+			FromText:   "",
+			FromAudio:  str,
+			ToText:     "",
+			ToAudioUrl: "",
+		}
+	} else {
+		msg = &ChatMsgJson{
+			Catalog:    "text",
+			Time:       strconv.FormatInt(time.Now().Unix(), 10),
+			FromUser:   "8618100805249",
+			ToUser:     "18358183215",
+			FromLang:   "zh",
+			ToLang:     "en",
+			FromText:   "你好,很高兴见到你",
+			FromAudio:  "",
+			ToText:     "",
+			ToAudioUrl: "",
+		}
 	}
 	return msg, nil
 }
@@ -59,6 +75,7 @@ func onMessageReceived(client MQTT.Client, message MQTT.Message) {
 
 func main() {
 	server := flag.String("server", "tcp://27.155.100.158:1883", "The full URL of the MQTT server to connect to")
+	isText := flag.Bool("isText", false, "是文本翻译")
 	topic := flag.String("topic", "/8618100805249/18358183215/messages", "Topic to publish the messages on")
 	username := flag.String("username", "8618100805249", "A username to authenticate to the MQTT server")
 	password := flag.String("password", "P6vdnfjlMTBlZ1p", "Password to match username")
@@ -87,7 +104,7 @@ func main() {
 	var msg *ChatMsgJson
 	var err error
 
-	msg, err = getChatMsg()
+	msg, err = getChatMsg(*isText)
 	if err != nil {
 		fmt.Println(err)
 		return
