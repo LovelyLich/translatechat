@@ -931,7 +931,7 @@ type LangCode struct {
 }
 
 func doPhoneCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	ret = []PhoneCode{
+	ret := []PhoneCode{
 		{
 			Name: "中国",
 			Code: "86",
@@ -944,7 +944,7 @@ func doPhoneCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	return ret, nil
 }
 func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	ret = []LangCode{
+	ret := []LangCode{
 		{
 			Name: "自动",
 			Code: "auto"},
