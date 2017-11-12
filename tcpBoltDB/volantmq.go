@@ -15,10 +15,12 @@
 package main
 
 import (
+	"bufio"
 	"crypto/md5"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -51,9 +53,11 @@ import (
 )
 
 var (
-	logger   *zap.Logger
-	db       *sql.DB
-	expireAt = 24 * 7 //默认token超时时间为10天
+	logger         *zap.Logger
+	db             *sql.DB
+	expireAt       = 24 * 7 //默认token超时时间为10天
+	phoneCodeFile  string
+	regionCodeFile string
 )
 
 type RegisterInfo struct {
@@ -119,6 +123,17 @@ type TransMsgJson struct {
 
 	ToText     string
 	ToAudioUrl string // 目标amr文件下载地址
+}
+
+type GpsQueryResp struct {
+	Result struct {
+		AddressComponent struct {
+			City     string `json:"city"`
+			Country  string `json:"country"`
+			Province string `json:"province"`
+		} `json:"addressComponent"`
+	} `json:"result"`
+	Status int `json:"status"`
 }
 
 func NewResponse(data interface{}, description string, code int) *Response {
@@ -974,18 +989,34 @@ type LangCode struct {
 }
 
 func doPhoneCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	ret := []PhoneCode{
-		{
-			Name: "中国",
-			Code: "86",
-		},
-		{
-			Name: "韩国",
-			Code: "82",
-		},
+	file, err := os.Open(phoneCodeFile)
+	if err != nil {
+		logger.Error("Can't open file", zap.String("file", phoneCodeFile))
+		return nil, err
+	}
+	defer file.Close()
+
+	var ret []PhoneCode
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		s := strings.Split(line, ";")
+		if len(s) != 2 {
+			continue
+		}
+		c := PhoneCode{
+			Name: s[0],
+			Code: s[1],
+		}
+		ret = append(ret, c)
+	}
+	if err := scanner.Err(); err != nil {
+		log.Println(err)
+		return nil, err
 	}
 	return ret, nil
 }
+
 func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	queryType := r.URL.Query().Get("type")
 	var ret []LangCode
@@ -1016,17 +1047,6 @@ func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 		}
 	}
 	return ret, nil
-}
-
-type GpsQueryResp struct {
-	Result struct {
-		AddressComponent struct {
-			City     string `json:"city"`
-			Country  string `json:"country"`
-			Province string `json:"province"`
-		} `json:"addressComponent"`
-	} `json:"result"`
-	Status int `json:"status"`
 }
 
 func doGetGpsRegion(w http.ResponseWriter, r *http.Request) (interface{}, error) {
@@ -1069,6 +1089,47 @@ func doGetGpsRegion(w http.ResponseWriter, r *http.Request) (interface{}, error)
 	}
 }
 
+type Location struct {
+	CountryRegion []CountryRegion
+}
+type CountryRegion struct {
+	Name  string `xml:",attr"`
+	Code  string `xml:",attr"`
+	State []State
+}
+type State struct {
+	Name string `xml:",attr"`
+	Code string `xml:",attr"`
+	City []City
+}
+type City struct {
+	Name string `xml:",attr"`
+	Code string `xml:",attr"`
+}
+
+func doGetRegionList(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+	file, err := os.Open(regionCodeFile)
+	if err != nil {
+		logger.Error("Can't open file", zap.String("file", phoneCodeFile))
+		return nil, err
+	}
+	defer file.Close()
+
+	var data []byte
+	data, err = ioutil.ReadAll(file)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+
+	var v Location
+	err = xml.Unmarshal(data, &v)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	return v, nil
+}
 func handleUserRegister(w http.ResponseWriter, r *http.Request) {
 	resp, err := doUserRegister(w, r)
 	HandleResponse(w, r, resp, err)
@@ -1134,6 +1195,11 @@ func handleGetGpsRegion(w http.ResponseWriter, r *http.Request) {
 	HandleResponse(w, r, resp, err)
 }
 
+func handleGetRegionList(w http.ResponseWriter, r *http.Request) {
+	resp, err := doGetRegionList(w, r)
+	HandleResponse(w, r, resp, err)
+}
+
 func handleTest(w http.ResponseWriter, r *http.Request) {
 	HandleResponse(w, r, nil, nil)
 }
@@ -1154,6 +1220,7 @@ func startApiListener() {
 	http.HandleFunc("/get_phone_code", handlePhoneCode)
 	http.HandleFunc("/get_lang_code", handleLangCode)
 	http.HandleFunc("/get_gps_region", handleGetGpsRegion)
+	http.HandleFunc("/get_region_list", handleGetRegionList)
 	//下载目录
 	fsh := http.FileServer(http.Dir("./upload"))
 	http.Handle("/download/", http.StripPrefix("/download/", fsh))
@@ -1167,7 +1234,16 @@ func startApiListener() {
 		logger.Info("Start Api listener on :3389")
 	}()
 }
-
+func isRegFileExist(fileName string) bool {
+	finfo, err := os.Stat(fileName)
+	if err != nil {
+		return false
+	}
+	if finfo.IsDir() {
+		return false
+	}
+	return true
+}
 func main() {
 	ops := configuration.Options{
 		LogWithTs: true,
@@ -1214,6 +1290,22 @@ func main() {
 	}
 	if err = viper.UnmarshalKey("mqtt.auth.dbAuth", &db); err != nil {
 		logger.Error("Couldn't unmarshal config", zap.Error(err))
+		os.Exit(1)
+	}
+	if err = viper.UnmarshalKey("mqtt.api.phoneCodeFile", &phoneCodeFile); err != nil {
+		logger.Error("Couldn't unmarshal config", zap.Error(err))
+		os.Exit(1)
+	}
+	if err = viper.UnmarshalKey("mqtt.api.regionCodeFile", &regionCodeFile); err != nil {
+		logger.Error("Couldn't unmarshal config", zap.Error(err))
+		os.Exit(1)
+	}
+	if !isRegFileExist(phoneCodeFile) {
+		logger.Error("PhoneCode File doesn't exist!", zap.String("file", phoneCodeFile))
+		os.Exit(1)
+	}
+	if !isRegFileExist(regionCodeFile) {
+		logger.Error("regionCode File doesn't exist!", zap.String("file", regionCodeFile))
 		os.Exit(1)
 	}
 

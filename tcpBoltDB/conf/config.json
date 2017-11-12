@@ -4,6 +4,10 @@
 			"dbAuth" : {
 				"DSN": "root:qmzpwnxo@tcp/user_auth"
 			}
+		},
+		"api": {
+			"phoneCodeFile":"conf/PhoneCode.txt",
+			"regionCodeFile":"conf/LocList.xml"
 		}
 	}
 }
