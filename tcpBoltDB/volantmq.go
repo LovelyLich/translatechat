@@ -966,18 +966,33 @@ func doPhoneCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	return ret, nil
 }
 func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
-	ret := []LangCode{
-		{
-			Name: "自动",
-			Code: "auto"},
-		{
-			Name: "中文",
-			Code: "zh",
-		},
-		{
-			Name: "英语",
-			Code: "en",
-		},
+	queryType := r.URL.Query().Get("type")
+	var ret []LangCode
+	if queryType == "text" {
+		ret = []LangCode{
+			{
+				Name: "自动",
+				Code: "auto"},
+			{
+				Name: "中文",
+				Code: "zh",
+			},
+			{
+				Name: "英语",
+				Code: "en",
+			},
+		}
+	} else {
+		ret := []LangCode{
+			{
+				Name: "中文",
+				Code: "zh",
+			},
+			{
+				Name: "英语",
+				Code: "en",
+			},
+		}
 	}
 	return ret, nil
 

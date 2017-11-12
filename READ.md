@@ -19,4 +19,8 @@
 5. 编译并启动nsq_translate
 	cd translatechat/nsq_translate; go build	
   	./nsq_translate
+6. 编译并安装ffmpeg 和 amrwb编码器
+	http://blog.csdn.net/loyachen/article/details/50909854
+	http://rachid.koucha.free.fr/tech_corner/ffmpeg_amr.html
+	https://trac.ffmpeg.org/wiki/CompilationGuide/Centos
 
