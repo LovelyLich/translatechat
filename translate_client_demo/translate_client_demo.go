@@ -51,7 +51,7 @@ func getChatMsg() (*ChatMsgJson, error) {
 
 func main() {
 	//构造Message, 并Post
-	url := "http://127.0.0.1:3389/translate"
+	url := "http://27.155.100.158:3389/translate"
 	msg, err := getChatMsg()
 	if err != nil {
 		fmt.Println(err)
