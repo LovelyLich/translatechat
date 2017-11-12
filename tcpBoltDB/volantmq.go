@@ -1032,7 +1032,7 @@ type GpsQueryResp struct {
 func doGetGpsRegion(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	gps := r.URL.Query().Get("gps")
 	regionAk := "sSOZEivp31Xu2P9YRF9Ayp3wZ04KZs11"
-	regionUrl := "http://api.map.baidu.com/geocoder/v2/?callback=renderReverse&location=" + gps + "&output=json&pois=0&ak=" + regionAk
+	regionUrl := "http://api.map.baidu.com/geocoder/v2/?location=" + gps + "&output=json&pois=0&ak=" + regionAk
 	resp, err := http.Get(regionUrl)
 	if err != nil {
 		log.Println(err)
