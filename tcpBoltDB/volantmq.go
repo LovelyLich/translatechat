@@ -720,20 +720,20 @@ func translateText(FromLang, ToLang, FromText string) (string, error) {
 	fmt.Printf("signStr=[%s], translateUrl=[%s]\n", signStr, translateUrl)
 	res, err := http.Get(translateUrl)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", nil
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", nil
 	}
 	var transResp TransResp
 	err = json.Unmarshal(body, &transResp)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", nil
 	}
 	fmt.Printf("translate result: %s, text result: %s\n", string(body), transResp.TransResult[0].Dst)
@@ -748,11 +748,25 @@ func getBaiduToken() string {
 	}
 	return string(buff)
 }
+func convertAudioFile(beforeFile, afterAmrFile string) error {
+	cmdStr := "ffmpeg -y -i " + beforeFile + " -acodec amr_wb -ac 1 -ar 16000 -ab 23850 " + afterAmrFile
+	_, err := exec.Command("bash", "-c", cmdStr).Output()
+	if err != nil {
+		log.Println("convert file: ", err)
+		return err
+	}
+	if err = os.Remove(beforeFile); err != nil {
+		log.Println("convert file: ", err)
+		return err
+	}
+	return nil
+}
+
 func translate(msg *TransMsgJson) error {
 	if msg.Catalog == "text" {
 		to, err := translateText(msg.FromLang, msg.ToLang, msg.FromText)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		msg.ToText = to
@@ -761,7 +775,7 @@ func translate(msg *TransMsgJson) error {
 		//构造会话目录
 		dir := "upload/translate/"
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			log.Fatal(err)
+			log.Println(err)
 			return err
 		}
 		//语音生成amr文件到翻译目录
@@ -771,13 +785,21 @@ func translate(msg *TransMsgJson) error {
 			return err
 		}
 		nowStr := strconv.FormatInt(time.Now().Unix(), 10)
+		audioCvtBefFile := dir + nowStr + "_cvtbef.amr"
 		audioAmrFile := dir + nowStr + ".amr"
 
-		err = ioutil.WriteFile(audioAmrFile, decoded, 0644)
+		err = ioutil.WriteFile(audioCvtBefFile, decoded, 0644)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
+
+		//语音文件格式适配
+		if err = convertAudioFile(audioCvtBefFile, audioAmrFile); err != nil {
+			log.Printf("convert audio file format failed, %s", err.Error())
+			return err
+		}
+
 		//语音转文字
 		var text string
 		text, err = audio2text(audioAmrFile)
@@ -822,36 +844,36 @@ func audio2text(audioAmrFile string) (string, error) {
 	var err error
 	file, err = os.Open(audioAmrFile)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	urlAudio2Text := "http://vop.baidu.com/server_api?lan=zh&cuid=" + cuid + "&token=" + token
 	var resp *http.Response
 	resp, err = http.Post(urlAudio2Text, "audio/amr;rate=16000", file)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	var body []byte
 	body, err = ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	var a2tRet Audio2TextResult
 	err = json.Unmarshal(body, &a2tRet)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return "", err
 	}
 	if a2tRet.ErrNo != 0 {
 		err = fmt.Errorf("Audio2Text failed, %s", a2tRet.ErrMsg)
-		fmt.Printf("Audio2Text failed, url: %s, result from server %s, %#v\n", urlAudio2Text, string(body), a2tRet)
+		log.Printf("Audio2Text failed, url: %s, result from server %s, %#v\n", urlAudio2Text, string(body), a2tRet)
 		return "", err
 	}
 
-	fmt.Printf("Audio2Text result: %s\n", a2tRet.Result[0])
+	log.Printf("Audio2Text result: %s\n", a2tRet.Result[0])
 	return a2tRet.Result[0], nil
 }
 
@@ -866,14 +888,14 @@ func text2audio(text, mp3File, saveAudioFile string) error {
 	var res *http.Response
 	res, err = http.Get(urlText2Audio)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 
 	var body []byte
 	body, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 	defer res.Body.Close()
@@ -885,18 +907,18 @@ func text2audio(text, mp3File, saveAudioFile string) error {
 
 	err = ioutil.WriteFile(mp3File, body, 0644)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 
 	cmdStr := "lame " + mp3File + " " + saveAudioFile
 	_, err = exec.Command("bash", "-c", cmdStr).Output()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 		return err
 	}
 	if err = os.Remove(mp3File); err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	return nil
 }
