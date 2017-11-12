@@ -1017,6 +1017,58 @@ func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	}
 	return ret, nil
 }
+
+type GpsQueryResp struct {
+	Result struct {
+		AddressComponent struct {
+			City     string `json:"city"`
+			Country  string `json:"country"`
+			Province string `json:"province"`
+		} `json:"addressComponent"`
+	} `json:"result"`
+	Status int `json:"status"`
+}
+
+func doGetGpsRegion(w http.ResponseWriter, r *http.Request) (interface{}, error) {
+	gps := r.URL.Query().Get("gps")
+	regionAk := "sSOZEivp31Xu2P9YRF9Ayp3wZ04KZs11"
+	regionUrl := "http://api.map.baidu.com/geocoder/v2/?callback=renderReverse&location=" + gps + "&output=json&pois=0&ak=" + regionAk
+	resp, err := http.Get(regionUrl)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	var gpsResp GpsQueryResp
+	err = json.Unmarshal(body, &gpsResp)
+	if err != nil {
+		log.Println(err)
+		return nil, err
+	}
+	if gpsResp.Status != 0 {
+		log.Println(err)
+		return nil, err
+	}
+	country := gpsResp.Result.AddressComponent.Country
+	prov := gpsResp.Result.AddressComponent.Province
+	city := gpsResp.Result.AddressComponent.City
+
+	if country == "" {
+		return "", nil
+	} else if prov == "" {
+		return country, nil
+	} else if city == "" {
+		return country + " " + prov, nil
+	} else {
+		return country + " " + prov + " " + city, nil
+	}
+}
+
 func handleUserRegister(w http.ResponseWriter, r *http.Request) {
 	resp, err := doUserRegister(w, r)
 	HandleResponse(w, r, resp, err)
@@ -1077,6 +1129,11 @@ func handleLangCode(w http.ResponseWriter, r *http.Request) {
 	HandleResponse(w, r, resp, err)
 }
 
+func handleGetGpsRegion(w http.ResponseWriter, r *http.Request) {
+	resp, err := doGetGpsRegion(w, r)
+	HandleResponse(w, r, resp, err)
+}
+
 func handleTest(w http.ResponseWriter, r *http.Request) {
 	HandleResponse(w, r, nil, nil)
 }
@@ -1096,6 +1153,7 @@ func startApiListener() {
 	http.HandleFunc("/translate", handleTranslate)
 	http.HandleFunc("/get_phone_code", handlePhoneCode)
 	http.HandleFunc("/get_lang_code", handleLangCode)
+	http.HandleFunc("/get_gps_region", handleGetGpsRegion)
 	//下载目录
 	fsh := http.FileServer(http.Dir("./upload"))
 	http.Handle("/download/", http.StripPrefix("/download/", fsh))
