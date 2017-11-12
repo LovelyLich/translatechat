@@ -108,7 +108,7 @@ func translateText(FromLang, ToLang, FromText string) (string, error) {
 
 func convertAudioFile(beforeFile, afterAmrFile string) error {
 	cmdStr := "ffmpeg -y -i " + beforeFile + " -acodec amr_wb -ac 1 -ar 16000 -ab 23850 " + afterAmrFile
-	_, err = exec.Command("bash", "-c", cmdStr).Output()
+	_, err := exec.Command("bash", "-c", cmdStr).Output()
 	if err != nil {
 		log.Println("convert file: ", err)
 		return err
