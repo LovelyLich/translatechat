@@ -17,6 +17,7 @@ package main
 import (
 	"bufio"
 	"crypto/md5"
+	"crypto/tls"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -43,6 +44,7 @@ import (
 	"github.com/VolantMQ/volantmq/auth"
 	"github.com/VolantMQ/volantmq/configuration"
 	"github.com/VolantMQ/volantmq/transport"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -58,6 +60,7 @@ var (
 	expireAt       = 24 * 7 //默认token超时时间为10天
 	phoneCodeFile  string
 	regionCodeFile string
+	mqttClient     MQTT.Client
 )
 
 type RegisterInfo struct {
@@ -583,6 +586,62 @@ func doGetFriendList(w http.ResponseWriter, r *http.Request) (interface{}, error
 	return friendList, nil
 }
 
+func checkAddFriendAuth(phoneNo string) bool {
+	var tmp bool
+	err := db.QueryRow("SELECT add_friend_auth FROM users where phoneno=?", phoneNo).Scan(&tmp)
+	if err != nil {
+		logger.Error("checkAddFriendAuth failed!")
+		return true
+	}
+	return tmp
+}
+
+type AddFriendSysMsg struct {
+	Catalog     string `json:"Catalog"`
+	Time        string `json:"Time"`
+	FromPhoneNo string `json:"FromPhoneNo"`
+	ToPhoneNo   string `json:"ToPhoneNo"`
+}
+
+func pubAddFriendSysInfo(fromPhoneNo, toPhoneNo string, topic string) error {
+	var sys = AddFriendSysMsg{
+		Catalog:     "AddFriendRequest",
+		Time:        time.Now().Format("2006-01-02 15:04:05"),
+		FromPhoneNo: fromPhoneNo,
+		ToPhoneNo:   toPhoneNo,
+	}
+
+	var buff []byte
+	buff, err := json.Marshal(sys)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	mqttClient.Publish(topic, 2, false, buff)
+	log.Printf("Published AddFriend Sys Message on %s\n", topic)
+
+	return nil
+}
+func initMqttClient() error {
+	server := "tcp://27.155.100.158:1883"
+	username := "8618100805249"
+	password := "P6vdnfjlMTBlZ1p"
+
+	connOpts := MQTT.NewClientOptions().AddBroker(server).SetClientID("sysMsgClient").SetCleanSession(true)
+	connOpts.SetUsername(username)
+	connOpts.SetPassword(password)
+	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
+	connOpts.SetTLSConfig(tlsConfig)
+
+	mqttClient = MQTT.NewClient(connOpts)
+	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
+		log.Println(token.Error())
+		return token.Error()
+	}
+	log.Printf("Connected to %s\n", server)
+	return nil
+}
 func doAddFriend(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	phoneNo, token, _, err := getAuthFromReq(r)
 	if !checkAuth(phoneNo, token) {
@@ -594,6 +653,8 @@ func doAddFriend(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	var tmp string
 	err = db.QueryRow("SELECT phoneno_b FROM friendship where phoneno_a=? AND phoneno_b=?", phoneNo, queryPhoneNo).Scan(&tmp)
 	if err == sql.ErrNoRows {
+		//检查是否需要验证
+		checkAddFriendAuth(phoneNo)
 		//添加朋友关系
 		now := time.Now().Format("2006-01-02 15:04:05")
 		err = Transact(db, func(tx *sql.Tx) error {
@@ -609,6 +670,12 @@ func doAddFriend(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 			logger.Error("Add friendship failed", zap.String("user1", phoneNo), zap.String("user2", queryPhoneNo), zap.Error(err))
 			return nil, err
 		}
+		sysTopic := "/sys/" + queryPhoneNo + "/message"
+		if err = pubAddFriendSysInfo(phoneNo, queryPhoneNo, sysTopic); err != nil {
+			logger.Error("Pub add friend sys msg failed", zap.String("user1", phoneNo), zap.String("user2", queryPhoneNo), zap.Error(err))
+			return nil, err
+		}
+
 		return nil, nil
 	} else if err != nil {
 		logger.Error("Add friend failed", zap.String("issue_user", phoneNo), zap.String("with_user", queryPhoneNo), zap.Error(err))
@@ -1281,6 +1348,11 @@ func main() {
 	err = db.Ping()
 	if err != nil {
 		logger.Error("Could't connect to database TranslateChat!", zap.Error(err))
+		return
+	}
+	// Init Mqtt Sys Client
+	if err = initMqttClient(); err != nil {
+		logger.Error("Could't initialize mqtt sys client!", zap.Error(err))
 		return
 	}
 
