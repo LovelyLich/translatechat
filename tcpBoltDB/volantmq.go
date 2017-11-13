@@ -1350,11 +1350,6 @@ func main() {
 		logger.Error("Could't connect to database TranslateChat!", zap.Error(err))
 		return
 	}
-	// Init Mqtt Sys Client
-	if err = initMqttClient(); err != nil {
-		logger.Error("Could't initialize mqtt sys client!", zap.Error(err))
-		return
-	}
 
 	// initialize auth database
 	var db struct {
@@ -1431,6 +1426,12 @@ func main() {
 
 	if err = srv.ListenAndServe(config); err != nil {
 		logger.Error("Couldn't start MQTT listener", zap.Error(err))
+	}
+
+	// Init Mqtt Sys Client
+	if err = initMqttClient(); err != nil {
+		logger.Error("Could't initialize mqtt sys client!", zap.Error(err))
+		return
 	}
 
 	//启动Api接口服务
