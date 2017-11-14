@@ -819,6 +819,7 @@ func translateText(FromLang, ToLang, FromText string) (string, error) {
 		return "", nil
 	}
 	if len(transResp.TransResult) < 1 {
+		log.Printf("translate result: %s\n", string(body))
 		err = fmt.Errorf("no result from translate server!")
 		return "", err
 	}
