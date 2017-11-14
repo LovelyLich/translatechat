@@ -1104,6 +1104,30 @@ func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 				Name: "英语",
 				Code: "en",
 			},
+			{
+				Name: "粤语",
+				Code: "yue",
+			},
+			{
+				Name: "日语",
+				Code: "jp",
+			},
+			{
+				Name: "韩语",
+				Code: "kor",
+			},
+			{
+				Name: "俄语",
+				Code: "ru",
+			},
+			{
+				Name: "泰语",
+				Code: "th",
+			},
+			{
+				Name: "丹麦语",
+				Code: "dan",
+			},
 		}
 	} else {
 		ret = []LangCode{
@@ -1248,6 +1272,7 @@ func handleUploadPhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTranslate(w http.ResponseWriter, r *http.Request) {
+	log.Printf("translate request: %#v\n", r)
 	resp, err := doTranslate(w, r)
 	HandleResponse(w, r, resp, err)
 }
