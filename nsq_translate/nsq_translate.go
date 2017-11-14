@@ -388,17 +388,19 @@ func main() {
 
 		var chatMsg ChatMsgJson
 		if err = json.Unmarshal(pubPkt.Payload(), &chatMsg); err != nil {
-			log.Printf("unmarshal publish pkt failed, payload: %s\n", string(pubPkt.Payload()))
+			log.Printf("unmarshal publish pkt failed, payload: %s, err: %s\n", string(pubPkt.Payload()), err.Error())
+			return err
 		}
 		//翻译
 		if err = translate(&chatMsg); err != nil {
-			log.Printf("translate message failed, chatMsg: %#v\n", chatMsg)
+			log.Printf("translate message failed, chatMsg: %#v, err %s\n", chatMsg, err.Error())
+			return err
 		}
 		//返回
 		var ret []byte
 		ret, err = json.Marshal(chatMsg)
 		if err != nil {
-			log.Printf("marshal into publish pkt failed, chatMsg: %#v\n", chatMsg)
+			log.Printf("marshal into publish pkt failed, chatMsg: %#v, err %s\n", chatMsg, err.Error())
 			return err
 		}
 		pubPkt.SetPayload(ret)
@@ -406,13 +408,13 @@ func main() {
 		var buff []byte
 		buff, err = packet.Encode(pubPkt)
 		if err != nil {
-			log.Printf("encode message into []byte failed")
+			log.Printf("encode message into []byte failed, err %s\n", err.Error())
 			return err
 		}
 		//发送翻译后的数据到消息队列
 		err = p.Publish("translateAfter", buff)
 		if err != nil {
-			fmt.Println(err)
+			log.Printf("publish to translateAfter failed, err %s\n", err.Error())
 			return err
 		}
 
