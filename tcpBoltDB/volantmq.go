@@ -258,6 +258,8 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 		ExpireTime string
 		Token      string
 		QrCodeUrl  string
+		NickName   string
+		AvatarUrl  string
 	}{}
 	var qrcodeUrl string
 	body, err := ioutil.ReadAll(r.Body)
@@ -300,8 +302,11 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 			logger.Error("Server error, unable to create qr code", zap.String("user", regInfo.PhoneNo), zap.Error(err))
 			return nil, err
 		}
-		//保存下载路径到数据库
 		qrcodeUrl = "download/" + regInfo.PhoneNo + "/qrcode.png"
+		//为该账号自动生成昵称
+		GenerateNickName()
+		//为该账号自动生成头像
+		GenerateAvatar()
 
 		t := time.Now().Add(time.Hour * time.Duration(expireAt))
 		expireTime := t.Format("2006-01-02 15:04:05")
@@ -1272,7 +1277,6 @@ func handleUploadPhoto(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleTranslate(w http.ResponseWriter, r *http.Request) {
-	log.Printf("translate request: %#v\n", r)
 	resp, err := doTranslate(w, r)
 	HandleResponse(w, r, resp, err)
 }
