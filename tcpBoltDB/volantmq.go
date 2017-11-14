@@ -818,6 +818,10 @@ func translateText(FromLang, ToLang, FromText string) (string, error) {
 		log.Println(err)
 		return "", nil
 	}
+	if len(transResp.TransResult) < 1 {
+		err = fmt.Errorf("no result from translate server!")
+		return "", err
+	}
 	fmt.Printf("translate result: %s, text result: %s\n", string(body), transResp.TransResult[0].Dst)
 	return transResp.TransResult[0].Dst, nil
 }
@@ -1032,7 +1036,6 @@ func doTranslate(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 		logger.Error("Could't read request body", zap.Error(err))
 		return nil, err
 	}
-	logger.Error("unmarshal body", zap.String("body", string(body)))
 	var msg TransMsgJson
 	err = json.Unmarshal(body, &msg)
 	if err != nil {
