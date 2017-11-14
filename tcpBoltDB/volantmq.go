@@ -1094,7 +1094,7 @@ func doLangCode(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	if queryType == "text" {
 		ret = []LangCode{
 			{
-				Name: "自动",
+				Name: "自动检测",
 				Code: "auto"},
 			{
 				Name: "中文",
