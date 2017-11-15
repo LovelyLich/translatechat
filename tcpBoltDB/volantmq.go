@@ -271,7 +271,7 @@ func random(min, max int) int {
 }
 
 func GenerateNickName() string {
-	f, err := os.OpenFile("./86_name.txt", os.O_RDONLY, 0600)
+	f, err := os.OpenFile("./i18n/86_name.txt", os.O_RDONLY, 0600)
 	if err != nil {
 		log.Println(err)
 		return "方天宇"
