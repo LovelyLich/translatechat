@@ -313,7 +313,6 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 		ExpireTime string
 		Token      string
 		QrCodeUrl  string
-		NickName   string
 		AvatarUrl  string
 	}{}
 	var qrcodeUrl string
