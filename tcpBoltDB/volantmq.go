@@ -279,13 +279,29 @@ func GenerateNickName() string {
 	defer f.Close()
 
 	firstLine := getNameLine(f, random(1, 2000))
-	firstName := strings.Fields(firstLine)[0]
-
 	secondLine := getNameLine(f, random(1, 2000))
-	secondName := strings.Fields(secondLine)[1]
-
 	thirdLine := getNameLine(f, random(1, 2000))
-	thirdName := strings.Fields(thirdLine)[2]
+
+	names1 := strings.Fields(firstLine)
+	names2 := strings.Fields(secondLine)
+	names3 := strings.Fields(thirdLine)
+
+	var firstName, secondName, thirdName string
+	if len(names1) < 1 {
+		firstName = "方"
+	} else {
+		firstName = names1[0]
+	}
+	if len(names2) < 2 {
+		secondName = "天"
+	} else {
+		secondName = names2[1]
+	}
+	if len(names3) < 3 {
+		thirdName = "月"
+	} else {
+		thirdName = names3[2]
+	}
 
 	name := fmt.Sprintf("%s%s%s", firstName, secondName, thirdName)
 	return name
