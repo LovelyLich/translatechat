@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/VolantMQ/volantmq/packet"
-	"github.com/VolantMQ/volantmq/topics/types"
 	nsq "github.com/nsqio/go-nsq"
 	"go.uber.org/zap"
 )
@@ -375,13 +374,13 @@ func main() {
 		m, _, err := packet.Decode(packet.ProtocolV311, msg.Body)
 		if err != nil {
 			log.Printf("decode message failed, msg: %s\n", string(msg.Body))
-			return topicsTypes.ErrUnexpectedObjectType
+			return nil
 		}
 
 		pubPkt, ok := m.(*packet.Publish)
 		if !ok {
 			log.Printf("decode message converted to publish pkt failed, pkt %#v\n", m)
-			return topicsTypes.ErrUnexpectedObjectType
+			return nil
 		}
 
 		fmt.Printf("got new message from channel translateBefore, topic: %s\n", string(pubPkt.Topic()))
@@ -389,19 +388,19 @@ func main() {
 		var chatMsg ChatMsgJson
 		if err = json.Unmarshal(pubPkt.Payload(), &chatMsg); err != nil {
 			log.Printf("unmarshal publish pkt failed, payload: %s, err: %s\n", string(pubPkt.Payload()), err.Error())
-			return err
+			return nil
 		}
 		//翻译
 		if err = translate(&chatMsg); err != nil {
 			log.Printf("translate message failed, chatMsg: %#v, err %s\n", chatMsg, err.Error())
-			return err
+			return nil
 		}
 		//返回
 		var ret []byte
 		ret, err = json.Marshal(chatMsg)
 		if err != nil {
 			log.Printf("marshal into publish pkt failed, chatMsg: %#v, err %s\n", chatMsg, err.Error())
-			return err
+			return nil
 		}
 		pubPkt.SetPayload(ret)
 		//encode Mqtt  Publish pkt into NSQ Message
@@ -409,15 +408,14 @@ func main() {
 		buff, err = packet.Encode(pubPkt)
 		if err != nil {
 			log.Printf("encode message into []byte failed, err %s\n", err.Error())
-			return err
+			return nil
 		}
 		//发送翻译后的数据到消息队列
 		err = p.Publish("translateAfter", buff)
 		if err != nil {
 			log.Printf("publish to translateAfter failed, err %s\n", err.Error())
-			return err
+			return nil
 		}
-
 		return nil
 	}
 	c.AddHandler(nsq.HandlerFunc(hand))
