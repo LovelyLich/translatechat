@@ -309,6 +309,7 @@ func GenerateAvatar(nickName string, saveFile string) error {
 func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	var ret = struct {
 		PhoneNo    string
+		NickName   string
 		ExpireTime string
 		Token      string
 		QrCodeUrl  string
@@ -380,7 +381,7 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 			}
 			now := time.Now().Format("2006-01-02 15:04:05")
 			if _, err := tx.Exec("INSERT INTO users(phoneno, nickname, qrcode_url, avatar, register_time, last_login_time) VALUES(?, ?, ?, ?, ?, ?)",
-				regInfo.PhoneNo, regInfo.PhoneNo, qrcodeUrl, avatarUrl, now, now); err != nil {
+				regInfo.PhoneNo, nickName, qrcodeUrl, avatarUrl, now, now); err != nil {
 				return err
 			}
 			return nil
@@ -390,6 +391,7 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 			return nil, err
 		}
 		ret.PhoneNo = regInfo.PhoneNo
+		ret.NickName = nickName
 		ret.Token = token
 		ret.ExpireTime = expireTime
 		ret.QrCodeUrl = qrcodeUrl
