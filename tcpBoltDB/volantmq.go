@@ -45,6 +45,7 @@ import (
 	"github.com/VolantMQ/volantmq/configuration"
 	"github.com/VolantMQ/volantmq/transport"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	avatar "github.com/holys/initials-avatar"
 	qrcode "github.com/skip2/go-qrcode"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -252,6 +253,59 @@ func Users2FriendList(users []UserInfo) FriendList {
 	return fl
 }
 
+func getNameLine(f *os.File, lineNum int) string {
+	sc := bufio.NewScanner(f)
+	currentLineNo := 0
+	for sc.Scan() {
+		currentLineNo++
+		if currentLineNo == lineNum {
+			return sc.Text()
+		}
+	}
+	return ""
+}
+
+func random(min, max int) int {
+	rand.Seed(time.Now().Unix())
+	return rand.Intn(max-min) + min
+}
+
+func GenerateNickName() string {
+	f, err := os.OpenFile("./86_name.txt", os.O_RDONLY, 0600)
+	if err != nil {
+		log.Println(err)
+		return "方天宇"
+	}
+	defer f.Close()
+
+	firstLine := getNameLine(f, random(1, 2000))
+	firstName := strings.Fields(firstLine)[0]
+
+	secondLine := getNameLine(f, random(1, 2000))
+	secondName := strings.Fields(secondLine)[1]
+
+	thirdLine := getNameLine(f, random(1, 2000))
+	thirdName := strings.Fields(thirdLine)[2]
+
+	name := fmt.Sprintf("%s%s%s", firstName, secondName, thirdName)
+	return name
+}
+
+func GenerateAvatar(nickName string, saveFile string) error {
+	a := avatar.New(`./conf/Hiragino_Sans_GB_W3.ttf`)
+	b, err := a.DrawToBytes(nickName, 148)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	err = ioutil.WriteFile(saveFile, b, 0644)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	return nil
+}
 func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error) {
 	var ret = struct {
 		PhoneNo    string
@@ -262,6 +316,8 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 		AvatarUrl  string
 	}{}
 	var qrcodeUrl string
+	var avatarUrl string
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		logger.Error("Could't read request body", zap.Error(err))
@@ -303,10 +359,17 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 			return nil, err
 		}
 		qrcodeUrl = "download/" + regInfo.PhoneNo + "/qrcode.png"
+
 		//为该账号自动生成昵称
-		GenerateNickName()
+		nickName := GenerateNickName()
+
 		//为该账号自动生成头像
-		GenerateAvatar()
+		avatarUrl = "download/" + regInfo.PhoneNo + "/avatar.png"
+		err = GenerateAvatar(nickName, dir+"/avatar.png")
+		if err != nil {
+			logger.Error("Server error, unable to create avatar image", zap.String("user", regInfo.PhoneNo), zap.Error(err))
+			return nil, err
+		}
 
 		t := time.Now().Add(time.Hour * time.Duration(expireAt))
 		expireTime := t.Format("2006-01-02 15:04:05")
@@ -316,8 +379,8 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 				return err
 			}
 			now := time.Now().Format("2006-01-02 15:04:05")
-			if _, err := tx.Exec("INSERT INTO users(phoneno, nickname, qrcode_url, register_time, last_login_time) VALUES(?, ?, ?, ?, ?)",
-				regInfo.PhoneNo, regInfo.PhoneNo, qrcodeUrl, now, now); err != nil {
+			if _, err := tx.Exec("INSERT INTO users(phoneno, nickname, qrcode_url, avatar, register_time, last_login_time) VALUES(?, ?, ?, ?, ?, ?)",
+				regInfo.PhoneNo, regInfo.PhoneNo, qrcodeUrl, avatarUrl, now, now); err != nil {
 				return err
 			}
 			return nil
@@ -330,6 +393,7 @@ func doUserRegister(w http.ResponseWriter, r *http.Request) (interface{}, error)
 		ret.Token = token
 		ret.ExpireTime = expireTime
 		ret.QrCodeUrl = qrcodeUrl
+		ret.AvatarUrl = avatarUrl
 
 		logger.Info("Create account success", zap.String("PhoneNo", regInfo.PhoneNo))
 		return ret, nil
