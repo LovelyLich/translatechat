@@ -34,6 +34,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -222,13 +223,19 @@ func getAuthFromReq(r *http.Request) (string, string, string, error) {
 	}
 	return str[0], str[1], str[2], nil
 }
-func checkAuth(phoneNo, token string) bool {
+func checkAuth(phoneNo, token string) (isAuth bool) {
+	defer func() {
+		if !isAuth {
+			debug.PrintStack()
+		}
+	}()
 	var dbToken, expireTime string
 	//检查用户是否存在
 	err := db.QueryRow("SELECT token, token_expire_time FROM user_auth WHERE phoneno=?", phoneNo).Scan(&dbToken, &expireTime)
 	if err != nil {
 		logger.Error("User auth failed", zap.String("user", phoneNo), zap.Error(err))
-		return false
+		isAuth = false
+		return isAuth
 	}
 	//校验Token是否正确
 	if isExpired(expireTime) {
@@ -238,9 +245,11 @@ func checkAuth(phoneNo, token string) bool {
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(dbToken), []byte(token))
 	if err != nil {
-		return false
+		isAuth = false
+		return isAuth
 	}
-	return true
+	isAuth = false
+	return isAuth
 }
 
 func Users2FriendList(users []UserInfo) FriendList {
